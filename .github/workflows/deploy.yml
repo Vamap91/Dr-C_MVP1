@@ -51,7 +51,7 @@ jobs:
     
     - name: Build Docker image
       run: |
-        docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+        docker build --build-arg VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }} -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
         docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
     
     - name: Push Docker image
@@ -70,4 +70,3 @@ jobs:
           --cpu 1 \
           --max-instances 10 \
           --set-env-vars NODE_ENV=production
-
