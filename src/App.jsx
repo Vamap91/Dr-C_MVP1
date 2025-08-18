@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import { Textarea } from '@/components/textarea.jsx'
 import { Send, Loader2, Leaf, User, Globe } from 'lucide-react'
 import { useLanguage } from './hooks/useLanguage'
 import { translations, useTranslation } from './i18n/translations'
@@ -37,19 +38,58 @@ function App() {
     ))
   }, [language, t])
 
-  const generateResponse = (message) => {
+  // Função para chamar GPT
+  const callGPT = async (message) => {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: language === 'pt' 
+                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação.'
+                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation.'
+            },
+            {
+              role: 'user',
+              content: message
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0.7
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro na API do OpenAI')
+      }
+
+      const data = await response.json()
+      return {
+        content: data.choices[0].message.content,
+        citations: [language === 'pt' ? 'Fonte: Dr_C com IA' : 'Source: Dr_C with AI']
+      }
+    } catch (error) {
+      console.error('Erro ao chamar GPT:', error)
+      return generateFallbackResponse(message)
+    }
+  }
+
+  // Função de fallback (sistema atual)
+  const generateFallbackResponse = (message) => {
     const messageLower = message.toLowerCase()
     const knowledgeBase = translations[language].knowledge
     
-    console.log('Mensagem recebida:', messageLower)
-    console.log('Idioma atual:', language)
-    console.log('Base de conhecimento:', Object.keys(knowledgeBase))
-    
-    // Buscar diretamente nas chaves da base de conhecimento
     let bestMatch = null
     let bestScore = 0
     
-    // Primeiro, buscar correspondências diretas
+    // Buscar correspondências diretas
     for (const [key, knowledge] of Object.entries(knowledgeBase)) {
       const keyWords = key.toLowerCase().split(/[\s-]+/)
       let score = 0
@@ -66,7 +106,7 @@ function App() {
       }
     }
     
-    // Se não encontrou, buscar por termos relacionados
+    // Buscar por termos relacionados
     if (!bestMatch || bestScore === 0) {
       const searchTerms = {
         pt: {
@@ -120,9 +160,6 @@ function App() {
       }
     }
     
-    console.log('Melhor correspondência encontrada:', bestMatch ? 'Sim' : 'Não')
-    console.log('Score:', bestScore)
-    
     // Se encontrou um tópico relevante
     if (bestMatch && bestScore > 0) {
       return {
@@ -131,7 +168,7 @@ function App() {
       }
     }
     
-    // Resposta genérica inspiradora
+    // Resposta genérica
     const genericResponses = translations[language].genericResponses
     const randomResponse = genericResponses[Math.floor(Math.random() * genericResponses.length)]
     
@@ -158,10 +195,8 @@ function App() {
     setIsLoading(true)
 
     try {
-      // Simular delay para parecer mais realista
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-      
-      const response = generateResponse(currentInput)
+      // Tentar usar GPT primeiro, depois fallback
+      const response = await callGPT(currentInput)
       
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
@@ -185,6 +220,14 @@ function App() {
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Função para lidar com Enter no textarea
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
     }
   }
 
@@ -303,21 +346,27 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Form */}
+            {/* Input Form - MELHORADO COM TEXTAREA */}
             <div className="border-t border-gray-100 p-4">
               <form onSubmit={handleSubmit} className="flex space-x-3">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder={t('placeholder')}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
+                <div className="flex-1">
+                  <Textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('placeholder')}
+                    className="resize-none min-h-[40px] max-h-[120px] border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    disabled={isLoading}
+                    rows={1}
+                  />
+                  <div className="text-xs text-gray-400 mt-1">
+                    {language === 'pt' ? 'Pressione Enter para enviar, Shift+Enter para nova linha' : 'Press Enter to send, Shift+Enter for new line'}
+                  </div>
+                </div>
                 <Button
                   type="submit"
                   disabled={!inputValue.trim() || isLoading}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full hover:from-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  className="self-end px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
