@@ -2,47 +2,65 @@ name: Deploy to Google Cloud Run
 
 on:
   push:
+    branches: [ main, develop ]
+  pull_request:
     branches: [ main ]
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: drcbiodiversity
+  SERVICE_NAME: dr-c-app
   REGION: us-central1
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linter
+      run: npm run lint
+    
+    - name: Build application
+      run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
     
-    - name: Debug secrets
-      run: |
-        echo "Project ID exists: ${{ secrets.GCP_PROJECT_ID != '' }}"
-        echo "SA Key exists: ${{ secrets.GCP_SA_KEY != '' }}"
-        echo "OpenAI Key exists: ${{ secrets.OPENAI_API_KEY != '' }}"
-    
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
+    - name: Setup Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v1
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
     
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-    
-    - name: Configure Docker
+    - name: Configure Docker to use gcloud as credential helper
       run: gcloud auth configure-docker
     
+    # 🔥 CORREÇÃO PRINCIPAL: Adicionar --build-arg
     - name: Build Docker image
       run: |
         docker build \
           --build-arg VITE_OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
           -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+        docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
     
     - name: Push Docker image
-      run: docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+      run: |
+        docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+        docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
     
     - name: Deploy to Cloud Run
       run: |
@@ -54,4 +72,4 @@ jobs:
           --memory 512Mi \
           --cpu 1 \
           --max-instances 10 \
-          --set-env-vars VITE_OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+          --set-env-vars NODE_ENV=production
