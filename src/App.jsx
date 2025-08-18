@@ -41,6 +41,8 @@ function App() {
   // Função para chamar GPT
   const callGPT = async (message) => {
     try {
+      console.log('Tentando chamar GPT...', import.meta.env.VITE_OPENAI_API_KEY ? 'API Key encontrada' : 'API Key não encontrada')
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -53,8 +55,8 @@ function App() {
             {
               role: 'system',
               content: language === 'pt' 
-                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação. Mantenha as respostas concisas mas informativas.'
-                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation. Keep answers concise but informative.'
+                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação. Mantenha as respostas concisas mas informativas. Varie suas respostas e seja criativo.'
+                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation. Keep answers concise but informative. Vary your responses and be creative.'
             },
             {
               role: 'user',
@@ -62,21 +64,28 @@ function App() {
             }
           ],
           max_tokens: 500,
-          temperature: 0.7
+          temperature: 0.8
         })
       })
 
+      console.log('Response status:', response.status)
+
       if (!response.ok) {
-        throw new Error('Erro na API do OpenAI')
+        const errorData = await response.text()
+        console.error('Erro da API:', errorData)
+        throw new Error(`Erro na API do OpenAI: ${response.status}`)
       }
 
       const data = await response.json()
+      console.log('Resposta do GPT recebida com sucesso')
+      
       return {
         content: data.choices[0].message.content,
-        citations: [language === 'pt' ? 'Fonte: Dr_C com IA' : 'Source: Dr_C with AI']
+        citations: [language === 'pt' ? 'Fonte: Dr_C com IA (GPT)' : 'Source: Dr_C with AI (GPT)']
       }
     } catch (error) {
       console.error('Erro ao chamar GPT:', error)
+      console.log('Usando fallback response')
       return generateFallbackResponse(message)
     }
   }
