@@ -31,30 +31,27 @@ function App() {
     scrollToBottom()
   }, [messages])
 
-  // Atualizar mensagem de boas-vindas quando idioma mudar
   useEffect(() => {
     setMessages(prev => prev.map((msg, index) => 
       index === 0 ? { ...msg, content: t('welcomeMessage') } : msg
     ))
   }, [language, t])
 
-  // Função para chamar GPT - COM DEBUG COMPLETO
   const callGPT = async (message) => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     
     console.log('=== DEBUG GPT ===');
     console.log('API Key exists:', !!apiKey);
     console.log('API Key length:', apiKey ? apiKey.length : 0);
-    console.log('Message:', message);
+    console.log('API Key preview:', apiKey ? `${apiKey.substring(0, 10)}...` : 'undefined');
     
-    // Se não tem API key, usar fallback
-    if (!apiKey) {
-      console.log('❌ Sem API key - usando fallback');
+    if (!apiKey || apiKey === 'undefined' || apiKey.length < 20) {
+      console.log('❌ API key inválida - usando fallback');
       return generateFallbackResponse(message);
     }
     
     try {
-      console.log('🚀 Fazendo chamada para OpenAI...');
+      console.log('🚀 Chamando OpenAI...');
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -81,16 +78,14 @@ function App() {
         })
       })
 
-      console.log('Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('❌ Erro da API:', errorData)
+        console.error('❌ Erro da API:', response.status, errorData)
         throw new Error(`API Error: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('✅ GPT funcionou! Resposta recebida')
+      console.log('✅ GPT funcionou!')
       
       return {
         content: data.choices[0].message.content,
@@ -98,12 +93,10 @@ function App() {
       }
     } catch (error) {
       console.error('❌ Erro no GPT:', error)
-      console.log('📝 Usando fallback response')
       return generateFallbackResponse(message)
     }
   }
 
-  // Função de fallback (sistema atual)
   const generateFallbackResponse = (message) => {
     const messageLower = message.toLowerCase()
     const knowledgeBase = translations[language].knowledge
@@ -111,7 +104,6 @@ function App() {
     let bestMatch = null
     let bestScore = 0
     
-    // Buscar correspondências diretas
     for (const [key, knowledge] of Object.entries(knowledgeBase)) {
       const keyWords = key.toLowerCase().split(/[\s-]+/)
       let score = 0
@@ -128,10 +120,9 @@ function App() {
       }
     }
     
-    // Buscar por termos relacionados
     if (!bestMatch || bestScore === 0) {
-      const searchTerms = {
-        pt: {
+      const relatedTerms = {
+        'pt': {
           'abelha': 'abelhas',
           'polinização': 'abelhas',
           'polinizacao': 'abelhas',
@@ -151,7 +142,7 @@ function App() {
           'clima': 'soluções baseadas na natureza',
           'carbono': 'soluções baseadas na natureza'
         },
-        en: {
+        'en': {
           'bee': 'bees',
           'pollination': 'bees',
           'honey': 'bees',
@@ -169,34 +160,32 @@ function App() {
         }
       }
       
-      const currentSearchTerms = searchTerms[language] || searchTerms.pt
+      const terms = relatedTerms[language] || relatedTerms['pt']
       
-      for (const [searchTerm, knowledgeKey] of Object.entries(currentSearchTerms)) {
-        if (messageLower.includes(searchTerm)) {
-          const knowledge = knowledgeBase[knowledgeKey]
-          if (knowledge && searchTerm.length > bestScore) {
-            bestScore = searchTerm.length
+      for (const [term, key] of Object.entries(terms)) {
+        if (messageLower.includes(term)) {
+          const knowledge = knowledgeBase[key]
+          if (knowledge && term.length > bestScore) {
+            bestScore = term.length
             bestMatch = knowledge
           }
         }
       }
     }
     
-    // Se encontrou um tópico relevante
     if (bestMatch && bestScore > 0) {
       return {
-        content: `${bestMatch.content}\n\n${t('followUp')}`,
+        content: `${bestMatch.content}\n\n${translations[language].followUp}`,
         citations: bestMatch.citations
       }
     }
     
-    // Resposta genérica
     const genericResponses = translations[language].genericResponses
     const randomResponse = genericResponses[Math.floor(Math.random() * genericResponses.length)]
     
     return {
-      content: `${randomResponse}\n\n${t('followUp')}`,
-      citations: [t('defaultCitation')]
+      content: `${randomResponse}\n\n${translations[language].followUp}`,
+      citations: [translations[language].defaultCitation]
     }
   }
 
@@ -212,206 +201,175 @@ function App() {
     }
 
     setMessages(prev => [...prev, userMessage])
-    const currentInput = inputValue
     setInputValue('')
     setIsLoading(true)
 
     try {
-      // Tentar usar GPT primeiro, depois fallback
-      const response = await callGPT(currentInput)
+      const response = await callGPT(inputValue)
       
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
         content: response.content,
         role: 'assistant',
         timestamp: new Date(),
-        citations: response.citations || []
+        citations: response.citations
       }
 
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error('Erro ao processar mensagem:', error)
+      
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         content: language === 'pt' 
-          ? 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.'
-          : 'Sorry, an error occurred while processing your message. Please try again.',
+          ? 'Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.'
+          : 'Sorry, an error occurred while processing your question. Please try again.',
         role: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(),
+        citations: []
       }
+
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Função para lidar com Enter no textarea
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
+  const formatTime = (date) => {
+    return date.toLocaleTimeString(language === 'pt' ? 'pt-BR' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4 relative">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-bold text-white">🌱</span>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <Leaf className="w-6 h-6 text-white" />
             </div>
-            
-            {/* Language Toggle */}
-            <Button
-              onClick={toggleLanguage}
-              className="absolute -right-12 top-0 w-12 h-12 rounded-full bg-white shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200"
-              variant="ghost"
-              size="sm"
-            >
-              <div className="flex flex-col items-center">
-                <Globe className="w-4 h-4 text-gray-600" />
-                <span className="text-xs font-medium text-gray-600">
-                  {isPortuguese ? 'EN' : 'PT'}
-                </span>
-              </div>
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Dr_C</h1>
+              <p className="text-sm text-gray-600">{t('subtitle')}</p>
+            </div>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">
-            Dr_C
-          </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-            {t('subtitle')}
-          </p>
-        </header>
+          <Button
+            onClick={toggleLanguage}
+            variant="outline"
+            size="sm"
+            className="flex items-center space-x-2 hover:bg-green-50"
+          >
+            <Globe className="w-4 h-4" />
+            <span>{isPortuguese ? 'EN' : 'PT'}</span>
+          </Button>
+        </div>
+      </header>
 
-        {/* Chat Interface */}
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            {/* Chat Messages - ALTURA AUMENTADA */}
-            <div className="h-[600px] md:h-[700px] overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex items-start space-x-3 ${
-                    message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.role === 'user' 
-                      ? 'bg-blue-500' 
-                      : 'bg-gradient-to-br from-emerald-500 to-teal-600'
-                  }`}>
-                    {message.role === 'user' ? (
-                      <User className="w-4 h-4 text-white" />
-                    ) : (
-                      <Leaf className="w-4 h-4 text-white" />
-                    )}
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 overflow-hidden">
+          <div className="h-[600px] overflow-y-auto p-6 space-y-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex items-start space-x-3 ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Leaf className="w-4 h-4 text-white" />
                   </div>
-
-                  {/* Message Content */}
-                  <div className={`flex-1 max-w-xs md:max-w-md lg:max-w-lg ${
-                    message.role === 'user' ? 'text-right' : 'text-left'
-                  }`}>
-                    <div className={`inline-block p-3 rounded-2xl ${
+                )}
+                
+                <div className={`max-w-[80%] ${message.role === 'user' ? 'order-1' : ''}`}>
+                  <div
+                    className={`rounded-2xl px-4 py-3 ${
                       message.role === 'user'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-blue-500 text-white ml-auto'
                         : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-
-                    {/* Citations */}
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    
                     {message.citations && message.citations.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-3 pt-3 border-t border-gray-200/50">
                         {message.citations.map((citation, index) => (
-                          <div key={index} className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                          <p key={index} className="text-xs text-gray-500 italic">
                             {citation}
-                          </div>
+                          </p>
                         ))}
                       </div>
                     )}
-
-                    {/* Timestamp */}
-                    <div className={`text-xs text-gray-400 mt-1 ${
-                      message.role === 'user' ? 'text-right' : 'text-left'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString(language === 'pt' ? 'pt-BR' : 'en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-1 px-2">
+                    {formatTime(message.timestamp)}
+                  </p>
+                </div>
+                
+                {message.role === 'user' && (
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                  <Leaf className="w-4 h-4 text-white" />
+                </div>
+                <div className="bg-gray-100 rounded-2xl px-4 py-3">
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                    <span className="text-gray-600">{t('thinking')}</span>
                   </div>
                 </div>
-              ))}
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
 
-              {/* Loading Indicator */}
-              {isLoading && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <Leaf className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="inline-block p-3 rounded-2xl bg-gray-100">
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                        <span className="text-sm text-gray-500">{t('thinking')}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Form - MELHORADO COM TEXTAREA */}
-            <div className="border-t border-gray-100 p-4">
-              <form onSubmit={handleSubmit} className="flex space-x-3">
-                <div className="flex-1">
-                  <Textarea
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('placeholder')}
-                    className="resize-none min-h-[60px] max-h-[120px] border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    disabled={isLoading}
-                    rows={2}
-                  />
-                  <div className="text-xs text-gray-400 mt-1">
-                    {language === 'pt' ? 'Pressione Enter para enviar, Shift+Enter para nova linha' : 'Press Enter to send, Shift+Enter for new line'}
-                  </div>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={!inputValue.trim() || isLoading}
-                  className="self-end px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </Button>
-              </form>
-            </div>
+          <div className="border-t border-green-100 p-4">
+            <form onSubmit={handleSubmit} className="flex space-x-3">
+              <Textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={t('inputPlaceholder')}
+                className="flex-1 resize-none border-green-200 focus:border-green-400 focus:ring-green-400/20"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }
+                }}
+              />
+              <Button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </form>
           </div>
         </div>
+      </main>
 
-        {/* Footer */}
-        <footer className="text-center mt-12 text-gray-500">
-          <p className="text-sm">
-            {t('footer')}
-          </p>
-          <p className="text-xs mt-2">
-            © 2025 - Todos os direitos reservados a Charles Gully Frewen Webster
-          </p>
-        </footer>
-      </div>
-    </main>
+      <footer className="text-center py-6 text-gray-500 text-sm">
+        Dr_C MVP - AI-Powered Biodiversity Platform
+      </footer>
+    </div>
   )
 }
 
