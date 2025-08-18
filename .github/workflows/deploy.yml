@@ -17,12 +17,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Google Cloud CLI
-      uses: google-github-actions/setup-gcloud@v2
+    - name: Debug secrets
+      run: |
+        echo "Project ID exists: ${{ secrets.GCP_PROJECT_ID != '' }}"
+        echo "SA Key exists: ${{ secrets.GCP_SA_KEY != '' }}"
+        echo "OpenAI Key exists: ${{ secrets.OPENAI_API_KEY != '' }}"
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
       with:
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        export_default_credentials: true
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
     
     - name: Configure Docker
       run: gcloud auth configure-docker
