@@ -15,6 +15,10 @@ RUN pnpm install --frozen-lockfile
 # Copiar código fonte
 COPY . .
 
+# Aceitar variável de ambiente no build
+ARG VITE_OPENAI_API_KEY
+ENV VITE_OPENAI_API_KEY=$VITE_OPENAI_API_KEY
+
 # Build da aplicação
 RUN pnpm run build
 
@@ -32,4 +36,3 @@ EXPOSE 8080
 
 # Comando para iniciar nginx
 CMD ["nginx", "-g", "daemon off;"]
-
