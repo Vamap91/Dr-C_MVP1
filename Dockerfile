@@ -1,26 +1,22 @@
 # Multi-stage build para otimizar tamanho da imagem
 FROM node:18-alpine AS builder
 
-# Definir diretório de trabalho
 WORKDIR /app
 
 # Copiar arquivos de dependências
 COPY package*.json ./
 COPY pnpm-lock.yaml* ./
 
-# Instalar pnpm e dependências
+# Instalar dependências
 RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
 
-# Aceitar variável de ambiente no build
+# Aceitar variável de ambiente no build (SEM HARDCODE!)
 ARG VITE_OPENAI_API_KEY
 ENV VITE_OPENAI_API_KEY=$VITE_OPENAI_API_KEY
-
-# TESTE: Adicionar variável diretamente (TEMPORÁRIO PARA TESTE)
-ENV VITE_OPENAI_API_KEY=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
 
 # Build da aplicação
 RUN pnpm run build
@@ -28,14 +24,8 @@ RUN pnpm run build
 # Estágio de produção
 FROM nginx:alpine
 
-# Copiar arquivos buildados
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copiar configuração customizada do nginx
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expor porta 8080 (Cloud Run requirement)
 EXPOSE 8080
-
-# Comando para iniciar nginx
 CMD ["nginx", "-g", "daemon off;"]
