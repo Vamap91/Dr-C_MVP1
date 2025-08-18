@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
-import { Textarea } from '@/components/textarea.jsx'
+import { Textarea } from '@/components/ui/textarea.jsx'
 import { Send, Loader2, Leaf, User, Globe } from 'lucide-react'
 import { useLanguage } from './hooks/useLanguage'
 import { translations, useTranslation } from './i18n/translations'
