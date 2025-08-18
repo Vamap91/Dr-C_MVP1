@@ -53,8 +53,8 @@ function App() {
             {
               role: 'system',
               content: language === 'pt' 
-                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação.'
-                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation.'
+                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação. Mantenha as respostas concisas mas informativas.'
+                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation. Keep answers concise but informative.'
             },
             {
               role: 'user',
@@ -355,9 +355,9 @@ function App() {
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('placeholder')}
-                    className="resize-none min-h-[40px] max-h-[120px] border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="resize-none min-h-[60px] max-h-[120px] border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     disabled={isLoading}
-                    rows={1}
+                    rows={2}
                   />
                   <div className="text-xs text-gray-400 mt-1">
                     {language === 'pt' ? 'Pressione Enter para enviar, Shift+Enter para nova linha' : 'Press Enter to send, Shift+Enter for new line'}
@@ -383,6 +383,9 @@ function App() {
         <footer className="text-center mt-12 text-gray-500">
           <p className="text-sm">
             {t('footer')}
+          </p>
+          <p className="text-xs mt-2">
+            © 2025 - Todos os direitos reservados a Charles Gully Frewen Webster
           </p>
         </footer>
       </div>
