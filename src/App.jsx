@@ -38,16 +38,29 @@ function App() {
     ))
   }, [language, t])
 
-  // Função para chamar GPT
+  // Função para chamar GPT - COM DEBUG COMPLETO
   const callGPT = async (message) => {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    console.log('=== DEBUG GPT ===');
+    console.log('API Key exists:', !!apiKey);
+    console.log('API Key length:', apiKey ? apiKey.length : 0);
+    console.log('Message:', message);
+    
+    // Se não tem API key, usar fallback
+    if (!apiKey) {
+      console.log('❌ Sem API key - usando fallback');
+      return generateFallbackResponse(message);
+    }
+    
     try {
-      console.log('Tentando chamar GPT...', import.meta.env.VITE_OPENAI_API_KEY ? 'API Key encontrada' : 'API Key não encontrada')
+      console.log('🚀 Fazendo chamada para OpenAI...');
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: 'gpt-3.5-turbo',
@@ -55,37 +68,37 @@ function App() {
             {
               role: 'system',
               content: language === 'pt' 
-                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa e inspiradora sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. Sempre inclua informações científicas e seja otimista sobre a conservação. Mantenha as respostas concisas mas informativas. Varie suas respostas e seja criativo.'
-                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational and inspiring way about nature, conservation, ecosystems and nature-based solutions. Always include scientific information and be optimistic about conservation. Keep answers concise but informative. Vary your responses and be creative.'
+                ? 'Você é Dr_C, um guia digital especialista em biodiversidade. Responda de forma educativa, inspiradora e SEMPRE DIFERENTE sobre natureza, conservação, ecossistemas e soluções baseadas na natureza. VARIE suas respostas. Seja criativo e nunca repita a mesma resposta. Inclua informações científicas específicas e seja otimista.'
+                : 'You are Dr_C, a digital guide expert in biodiversity. Answer in an educational, inspiring and ALWAYS DIFFERENT way about nature, conservation, ecosystems and nature-based solutions. VARY your responses. Be creative and never repeat the same answer. Include specific scientific information and be optimistic.'
             },
             {
               role: 'user',
               content: message
             }
           ],
-          max_tokens: 500,
-          temperature: 0.8
+          max_tokens: 400,
+          temperature: 0.9
         })
       })
 
-      console.log('Response status:', response.status)
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.text()
-        console.error('Erro da API:', errorData)
-        throw new Error(`Erro na API do OpenAI: ${response.status}`)
+        console.error('❌ Erro da API:', errorData)
+        throw new Error(`API Error: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('Resposta do GPT recebida com sucesso')
+      console.log('✅ GPT funcionou! Resposta recebida')
       
       return {
         content: data.choices[0].message.content,
-        citations: [language === 'pt' ? 'Fonte: Dr_C com IA (GPT)' : 'Source: Dr_C with AI (GPT)']
+        citations: [language === 'pt' ? '🤖 Fonte: Dr_C com IA (GPT)' : '🤖 Source: Dr_C with AI (GPT)']
       }
     } catch (error) {
-      console.error('Erro ao chamar GPT:', error)
-      console.log('Usando fallback response')
+      console.error('❌ Erro no GPT:', error)
+      console.log('📝 Usando fallback response')
       return generateFallbackResponse(message)
     }
   }
@@ -277,8 +290,8 @@ function App() {
         {/* Chat Interface */}
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            {/* Chat Messages */}
-            <div className="h-96 md:h-[500px] overflow-y-auto p-6 space-y-4">
+            {/* Chat Messages - ALTURA AUMENTADA */}
+            <div className="h-[600px] md:h-[700px] overflow-y-auto p-6 space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
