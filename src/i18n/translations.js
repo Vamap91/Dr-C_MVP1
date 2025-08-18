@@ -1,4 +1,4 @@
-/ Sistema de internacionalização para Dr_C
+// Sistema de internacionalização para Dr_C
 export const translations = {
   pt: {
     // Interface
