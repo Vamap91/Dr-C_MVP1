@@ -270,7 +270,7 @@ function App() {
 
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 overflow-hidden">
-          <div className="h-[600px] overflow-y-auto p-6 space-y-6">
+          <div className="h-[800px] overflow-y-auto p-6 space-y-6">
             {messages.map((message) => (
               <div
                 key={message.id}
