@@ -6,9 +6,27 @@ import { useLanguage } from './hooks/useLanguage'
 import { translations, useTranslation } from './i18n/translations'
 import './App.css'
 
+// Hook para detectar mobile (adicionado)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [])
+
+  return isMobile
+}
+
 function App() {
   const { language, toggleLanguage, isPortuguese } = useLanguage()
   const { t } = useTranslation(language)
+  const isMobile = useIsMobile() // Novo hook
   
   const [messages, setMessages] = useState([
     {
@@ -243,16 +261,27 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      <header className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className={`bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 ${
+      isMobile ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'
+    }`}>
+      {/* Header responsivo */}
+      <header className={`bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10 ${
+        isMobile ? 'flex-shrink-0' : ''
+      }`}>
+        <div className={`max-w-4xl mx-auto px-4 flex items-center justify-between ${
+          isMobile ? 'py-2' : 'py-4'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-              <Leaf className="w-6 h-6 text-white" />
+            <div className={`bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center ${
+              isMobile ? 'w-10 h-10' : 'w-12 h-12'
+            }`}>
+              <Leaf className={`text-white ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Dr_C</h1>
-              <p className="text-sm text-gray-600">{t('subtitle')}</p>
+              <h1 className={`font-bold text-gray-800 ${isMobile ? 'text-xl' : 'text-2xl'}`}>Dr_C</h1>
+              {!isMobile && (
+                <p className="text-sm text-gray-600">{t('subtitle')}</p>
+              )}
             </div>
           </div>
           
@@ -260,7 +289,9 @@ function App() {
             onClick={toggleLanguage}
             variant="outline"
             size="sm"
-            className="flex items-center space-x-2 hover:bg-green-50"
+            className={`flex items-center space-x-2 hover:bg-green-50 ${
+              isMobile ? 'text-xs px-2 py-1' : ''
+            }`}
           >
             <Globe className="w-4 h-4" />
             <span>{isPortuguese ? 'EN' : 'PT'}</span>
@@ -268,9 +299,26 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 overflow-hidden">
-          <div className="h-[calc(100vh-250px)] overflow-y-auto p-6 space-y-6">
+      {/* Main content - Layout flexbox para mobile */}
+      <main className={`max-w-4xl mx-auto px-4 ${
+        isMobile ? 'flex flex-col flex-1 min-h-0 py-2' : 'py-6'
+      }`}>
+        <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 overflow-hidden ${
+          isMobile ? 'flex flex-col h-full' : ''
+        }`}>
+          
+          {/* Messages area - Otimizada para mobile */}
+          <div 
+            className={`overflow-y-auto p-6 space-y-6 ${
+              isMobile 
+                ? 'flex-1 min-h-0 mobile-chat-messages' 
+                : 'h-[calc(100vh-250px)]'
+            }`}
+            style={isMobile ? {
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorY: 'contain'
+            } : {}}
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -279,25 +327,35 @@ function App() {
                 }`}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Leaf className="w-4 h-4 text-white" />
+                  <div className={`bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  }`}>
+                    <Leaf className={`text-white ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                   </div>
                 )}
                 
-                <div className={`max-w-[80%] ${message.role === 'user' ? 'order-1' : ''}`}>
+                <div className={`${
+                  isMobile ? 'max-w-[calc(100vw-120px)]' : 'max-w-[80%]'
+                } ${message.role === 'user' ? 'order-1' : ''}`}>
                   <div
                     className={`rounded-2xl px-4 py-3 ${
                       message.role === 'user'
                         ? 'bg-blue-500 text-white ml-auto'
                         : 'bg-gray-100 text-gray-800'
-                    }`}
+                    } ${isMobile ? 'px-3 py-2' : ''}`}
                   >
-                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    <p className={`whitespace-pre-wrap leading-relaxed ${
+                      isMobile ? 'text-sm' : ''
+                    }`}>
+                      {message.content}
+                    </p>
                     
                     {message.citations && message.citations.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-gray-200/50">
                         {message.citations.map((citation, index) => (
-                          <p key={index} className="text-xs text-gray-500 italic">
+                          <p key={index} className={`text-gray-500 italic ${
+                            isMobile ? 'text-xs' : 'text-xs'
+                          }`}>
                             {citation}
                           </p>
                         ))}
@@ -305,14 +363,16 @@ function App() {
                     )}
                   </div>
                   
-                  <p className="text-xs text-gray-500 mt-1 px-2">
+                  <p className={`text-gray-500 mt-1 px-2 ${isMobile ? 'text-xs' : 'text-xs'}`}>
                     {formatTime(message.timestamp)}
                   </p>
                 </div>
                 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-white" />
+                  <div className={`bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  }`}>
+                    <User className={`text-white ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                   </div>
                 )}
               </div>
@@ -320,13 +380,15 @@ function App() {
             
             {isLoading && (
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                  <Leaf className="w-4 h-4 text-white" />
+                <div className={`bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center ${
+                  isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                }`}>
+                  <Leaf className={`text-white ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                 </div>
-                <div className="bg-gray-100 rounded-2xl px-4 py-3">
+                <div className={`bg-gray-100 rounded-2xl px-4 py-3 ${isMobile ? 'px-3 py-2' : ''}`}>
                   <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-green-600" />
-                    <span className="text-gray-600">{t('thinking')}</span>
+                    <Loader2 className={`animate-spin text-green-600 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                    <span className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>{t('thinking')}</span>
                   </div>
                 </div>
               </div>
@@ -335,14 +397,20 @@ function App() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t border-green-100 p-4">
+          {/* Input form - Fixo no bottom */}
+          <div className={`border-t border-green-100 flex-shrink-0 ${
+            isMobile ? 'p-3' : 'p-4'
+          }`}>
             <form onSubmit={handleSubmit} className="flex space-x-3">
               <Textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={t('inputPlaceholder')}
-                className="flex-1 resize-none border-green-200 focus:border-green-400 focus:ring-green-400/20"
+                placeholder={t('placeholder')}
+                className={`flex-1 resize-none border-green-200 focus:border-green-400 focus:ring-green-400/20 ${
+                  isMobile ? 'text-base min-h-[40px]' : ''
+                }`}
                 rows={1}
+                style={isMobile ? { fontSize: '16px' } : {}} // Previne zoom no iOS
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -353,7 +421,9 @@ function App() {
               <Button
                 type="submit"
                 disabled={!inputValue.trim() || isLoading}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6"
+                className={`bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white ${
+                  isMobile ? 'px-4' : 'px-6'
+                }`}
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -366,9 +436,50 @@ function App() {
         </div>
       </main>
 
-      <footer className="text-center py-6 text-gray-500 text-sm">
-        Dr_C MVP - AI-Powered Biodiversity Platform
-      </footer>
+      {/* Footer - Oculto no mobile para economizar espaço */}
+      {!isMobile && (
+        <footer className="text-center py-6 text-gray-500 text-sm">
+          Dr_C MVP - AI-Powered Biodiversity Platform
+        </footer>
+      )}
+
+      {/* CSS para mobile scroll fix */}
+      <style jsx>{`
+        @media (max-width: 767px) {
+          .mobile-chat-messages {
+            height: calc(100vh - 200px);
+            height: calc(100dvh - 200px);
+            max-height: calc(100vh - 200px);
+            max-height: calc(100dvh - 200px);
+          }
+          
+          body {
+            position: fixed;
+            overflow: hidden;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+          }
+          
+          #root {
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+          }
+        }
+        
+        /* Scrollbar customizada */
+        .overflow-y-auto::-webkit-scrollbar {
+          width: 4px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+          background: #10b981;
+          border-radius: 20px;
+        }
+      `}</style>
     </div>
   )
 }
