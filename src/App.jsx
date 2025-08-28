@@ -6,7 +6,7 @@ import { useLanguage } from './hooks/useLanguage'
 import { translations, useTranslation } from './i18n/translations'
 import './App.css'
 
-// Hook para detectar mobile (adicionado)
+// Hook para detectar mobile
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
 
@@ -26,7 +26,7 @@ function useIsMobile() {
 function App() {
   const { language, toggleLanguage, isPortuguese } = useLanguage()
   const { t } = useTranslation(language)
-  const isMobile = useIsMobile() // Novo hook
+  const isMobile = useIsMobile()
   
   const [messages, setMessages] = useState([
     {
@@ -40,14 +40,28 @@ function App() {
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef(null)
+  const lastMessageCountRef = useRef(0)
 
+  // Scroll SIMPLES e SEGURO - só para novas mensagens
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
   }
 
+  // CORREÇÃO: useEffect SEM dependência de messages
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Só faz scroll se realmente tem mensagens novas
+    if (messages.length > lastMessageCountRef.current) {
+      lastMessageCountRef.current = messages.length
+      // Delay pequeno para garantir que DOM foi atualizado
+      const timer = setTimeout(() => {
+        scrollToBottom()
+      }, 50)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [messages.length]) // Dependência APENAS do length, não do array todo
 
   useEffect(() => {
     setMessages(prev => prev.map((msg, index) => 
@@ -299,7 +313,7 @@ function App() {
         </div>
       </header>
 
-      {/* Main content - Layout flexbox para mobile */}
+      {/* Main content */}
       <main className={`max-w-4xl mx-auto px-4 ${
         isMobile ? 'flex flex-col flex-1 min-h-0 py-2' : 'py-6'
       }`}>
@@ -307,11 +321,11 @@ function App() {
           isMobile ? 'flex flex-col h-full' : ''
         }`}>
           
-          {/* Messages area - Otimizada para mobile */}
+          {/* Messages area - SOLUÇÃO SIMPLES */}
           <div 
             className={`overflow-y-auto p-6 space-y-6 ${
               isMobile 
-                ? 'flex-1 min-h-0 mobile-chat-messages' 
+                ? 'flex-1 min-h-0' 
                 : 'h-[calc(100vh-250px)]'
             }`}
             style={isMobile ? {
@@ -394,10 +408,11 @@ function App() {
               </div>
             )}
             
-            <div ref={messagesEndRef} />
+            {/* Elemento para scroll - sempre presente */}
+            <div ref={messagesEndRef} className="h-1" />
           </div>
 
-          {/* Input form - Fixo no bottom */}
+          {/* Input form */}
           <div className={`border-t border-green-100 flex-shrink-0 ${
             isMobile ? 'p-3' : 'p-4'
           }`}>
@@ -410,7 +425,7 @@ function App() {
                   isMobile ? 'text-base min-h-[40px]' : ''
                 }`}
                 rows={1}
-                style={isMobile ? { fontSize: '16px' } : {}} // Previne zoom no iOS
+                style={isMobile ? { fontSize: '16px' } : {}}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -436,23 +451,16 @@ function App() {
         </div>
       </main>
 
-      {/* Footer - Oculto no mobile para economizar espaço */}
+      {/* Footer */}
       {!isMobile && (
         <footer className="text-center py-6 text-gray-500 text-sm">
           Dr_C MVP - AI-Powered Biodiversity Platform
         </footer>
       )}
 
-      {/* CSS para mobile scroll fix */}
+      {/* CSS para mobile - SEM JavaScript complexo */}
       <style jsx>{`
         @media (max-width: 767px) {
-          .mobile-chat-messages {
-            height: calc(100vh - 200px);
-            height: calc(100dvh - 200px);
-            max-height: calc(100vh - 200px);
-            max-height: calc(100dvh - 200px);
-          }
-          
           body {
             position: fixed;
             overflow: hidden;
@@ -478,6 +486,9 @@ function App() {
         .overflow-y-auto::-webkit-scrollbar-thumb {
           background: #10b981;
           border-radius: 20px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+          background: #059669;
         }
       `}</style>
     </div>
